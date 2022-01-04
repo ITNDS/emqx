@@ -62,16 +62,49 @@ if [ -z "${PROFILE:-}" ] || [ -z "${PKGTYPE:-}" ] || [ -z "${BUILDER:-}" ] || [ 
     exit 1
 fi
 
-if [ "$PKGTYPE" != 'zip' ] && [ "$PKGTYPE" != 'pkg' ]; then
+case "$PKGTYPE" in
+  zip|pkg|elixirpkg)
+    true
+    ;;
+  *)
     echo "Bad --pkgtype option, should be zip or pkg"
     exit 1
-fi
+    ;;
+esac
 
 cd "${SRC_DIR:-.}"
 
+get_otp_vsn () {
+  docker run -i --rm \
+         -v "$(pwd)":/emqx \
+         --workdir /emqx \
+         --platform="linux/$ARCH" \
+         "$BUILDER" \
+         bash -euc "./scripts/get-otp-vsn.sh"
+}
+
+get_elixir_vsn () {
+  docker run -i --rm \
+         -v "$(pwd)":/emqx \
+         --workdir /emqx \
+         --platform="linux/$ARCH" \
+         "$BUILDER" \
+         bash -euc "./scripts/get-elixir-vsn.sh"
+}
+
 PKG_VSN="${PKG_VSN:-$(./pkg-vsn.sh)}"
-OTP_VSN_SYSTEM=$(echo "$BUILDER" | cut -d ':' -f2)
-PKG_NAME="${PROFILE}-${PKG_VSN}-otp${OTP_VSN_SYSTEM}-${ARCH}"
+OTP_VSN=$(get_otp_vsn)
+ELIXIR_VSN=$(get_otp_vsn)
+SYSTEM=$(echo "$BUILDER" | cut -d ':' -f2)
+SYSTEM=${SYSTEM#$OTP_VSN-}
+SYSTEM=${SYSTEM#$ELIXIR_VSN-}
+
+if [ "$PKGTYPE" = "elixirpkg" ]
+then
+  PKG_NAME="${PROFILE}-${PKG_VSN}-otp${OTP_VSN}-elixir${ELIXIR_VSN}-${SYSTEM}-${ARCH}"
+else
+  PKG_NAME="${PROFILE}-${PKG_VSN}-otp${OTP_VSN}-${SYSTEM}-${ARCH}"
+fi
 
 docker info
 docker run --rm --privileged tonistiigi/binfmt:latest --install "${ARCH}"

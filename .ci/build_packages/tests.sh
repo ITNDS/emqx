@@ -8,10 +8,15 @@ if [ -z "${1:-}" ]; then
     exit 1
 fi
 
-if [ "${2:-}" != 'zip' ] && [ "${2:-}" != 'pkg' ]; then
+case "${2:-}" in
+  zip|pkg|elixirpkg)
+    true
+    ;;
+  *)
     echo "Usage $0 <PACKAGE_NAME> zip|pkg"
     exit 1
-fi
+    ;;
+esac
 
 PACKAGE_NAME="${1}"
 PACKAGE_TYPE="${2}"
